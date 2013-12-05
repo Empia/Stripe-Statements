@@ -1,0 +1,32 @@
+<assembly>
+	<id>bin</id>
+	<formats>
+		<format>zip</format>
+	</formats>
+	<fileSets>
+		<fileSet>
+			<includes>
+				<include>README*</include>
+				<include>LICENCE*</include>
+				<include>NOTICE*</include>
+				<include>lib/Stripe-Statements.properties</include>
+			</includes>
+		</fileSet>
+		<fileSet>
+			<includes>
+				<include>Stripe-Statements.sh</include>
+			</includes>
+			<fileMode>0755</fileMode>
+		</fileSet>
+	</fileSets>
+	<dependencySets>
+		<dependencySet>
+			<excludes>
+				<exclude>dependency:dependency</exclude>
+			</excludes>
+			<useProjectArtifact>true</useProjectArtifact>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<outputDirectory>lib</outputDirectory>
+		</dependencySet>
+	</dependencySets>
+</assembly>
