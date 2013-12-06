@@ -102,7 +102,8 @@
 				<version>1.0-beta-3</version>
 				<configuration>
 					<fromFile>${project.build.directory}/${project.build.finalName}-bin.zip</fromFile>
-					<url>${stripe.statements.latest.upload.location}/Stripe-Statements-latest.zip</url>
+					<url>${stripe.statements.latest.upload.location}</url>
+					<toFile>Stripe-Statements-latest.zip</toFile>
 				</configuration>
 				<executions>
 					<execution>
