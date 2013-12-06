@@ -15,7 +15,7 @@ This project aims to provide a simple way to regularly build statements with jus
 Get Started
 -----------
 
-Download the zip file of this project and extract it. In the folder, edit the proprties file to record your Stripe details. Then run the shell script.
+[Download the zip file](http://keithharris.org/StripeStatements/Stripe-Statements-latest.zip) of this project and extract it. In the folder, edit the proprties file to record your Stripe details. Then run the shell script.
 
 Each time you run, if there are new transactions that haven't yet been downloaded, a new statement will be created. As long as you run the script regularly (e.g. weekly) everything should tick over smoothly. You can run as often as you like - statements won't be created if there is no new data to download.
 
