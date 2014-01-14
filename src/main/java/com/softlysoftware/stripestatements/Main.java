@@ -113,22 +113,29 @@ public class Main {
 			sub.put("gt", cal.getTime().getTime()/1000);
 			params.put("created", sub);
 			params.put("count", 100);
-			BufferedWriter out = null;
-			BalanceTransactionCollection balanceTransactionCollection = BalanceTransaction.all(params);
-			log("Got " + balanceTransactionCollection.getCount() + " transactions from Stripe");
-			if (balanceTransactionCollection.getCount() != balanceTransactionCollection.getData().size()) {
-				// TODO - at this point we could page through the rest of the data
-				log("ABORT : Only " + balanceTransactionCollection.getData().size() + " of " + balanceTransactionCollection.getCount() + " transactions downloaded. You need paged downloads, which aren't yet supported.");
-				return;
-			}
+			int offset = 0;
 			List<BalanceTransaction> transactions = new LinkedList<BalanceTransaction>();
-			transactions.addAll(balanceTransactionCollection.getData());
+			boolean morePagesNeeded = false;
+			do {
+				params.put("offset", offset);
+				BalanceTransactionCollection balanceTransactionCollection = BalanceTransaction.all(params);
+				log("Got " + balanceTransactionCollection.getData().size() + " transactions from Stripe");
+				transactions.addAll(balanceTransactionCollection.getData());
+				int processed = offset + balanceTransactionCollection.getData().size();
+				morePagesNeeded = processed < balanceTransactionCollection.getCount();
+				if (morePagesNeeded) {
+					offset = offset + 100;
+					log("Have processed " + processed + " of " + balanceTransactionCollection.getData().size());
+					log("Making additional call with offset = " + offset);
+				}
+			} while (morePagesNeeded);
 			Collections.sort(transactions, new Comparator<BalanceTransaction>(){
 				public int compare(BalanceTransaction o1, BalanceTransaction o2) {
 					if (o1.getCreated() == o2.getCreated()) return o1.getType().compareTo(o2.getType());
 					return (int)(o1.getCreated() - o2.getCreated());
 				}
 			});
+			BufferedWriter out = null;
 			for (BalanceTransaction tr : transactions) {
 				if (seenTransactions.contains(tr.getId())) {
 					gapInTheData = false;
