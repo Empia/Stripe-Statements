@@ -26,6 +26,17 @@ import java.io.UnsupportedEncodingException;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.FileOutputStream;
+import javax.activation.DataHandler;
+import javax.activation.FileDataSource;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMultipart;
 import com.stripe.Stripe;
 import com.stripe.model.Fee;
 import com.stripe.model.BalanceTransaction;
@@ -36,6 +47,7 @@ import com.stripe.exception.InvalidRequestException;
 import com.stripe.exception.APIConnectionException;
 import com.stripe.exception.APIException;
 import com.stripe.exception.CardException;
+
 
 public class Main {
 
@@ -140,6 +152,9 @@ public class Main {
 				if (seenTransactions.contains(tr.getId())) {
 					gapInTheData = false;
 				}
+				else if (gapInTheData) {
+					// data that predates that in the last statement
+				}
 				else {
 					if (out == null) {
 						out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(statement), "UTF-8"));
@@ -163,6 +178,50 @@ public class Main {
 			}
 			else {
 				out.close();
+				String to = properties.getProperty("mail.to");
+				if (to != null && !to.endsWith("@example.com")) {
+					log("Sending email to : " + to);
+					final String username = properties.getProperty("mail.username");
+					final String password = properties.getProperty("mail.password");
+					Session session = Session.getInstance(properties, new javax.mail.Authenticator() {
+						protected PasswordAuthentication getPasswordAuthentication() {
+							return new PasswordAuthentication(username, password);
+						}
+					});
+					try {
+						MimeBodyPart textPart = new MimeBodyPart();
+						textPart.setText("Attached : " + statement.getName(), "UTF-8");
+
+						MimeBodyPart htmlPart = new MimeBodyPart();
+						htmlPart.setContent("Attached : <strong>" + statement.getName() + "</strong>", "text/html; charset=UTF-8");
+
+						MimeMultipart alternative = new MimeMultipart("alternative");
+						alternative.addBodyPart(textPart);
+						alternative.addBodyPart(htmlPart);
+
+						MimeBodyPart wrap = new MimeBodyPart();
+						wrap.setContent(alternative);
+
+						MimeMultipart mixed = new MimeMultipart("mixed");
+						mixed.addBodyPart(wrap);
+
+						MimeBodyPart attachmentBodyPart = new MimeBodyPart();
+						attachmentBodyPart.setDataHandler(new DataHandler(new FileDataSource(statement)));
+						attachmentBodyPart.setFileName(statement.getName());
+						mixed.addBodyPart(attachmentBodyPart);
+
+						Message message = new MimeMessage(session);
+						message.setFrom(new InternetAddress(properties.getProperty("mail.from")));
+						message.setRecipients(Message.RecipientType.TO,	InternetAddress.parse(to));
+						message.setSubject(statement.getName());
+						message.setContent(mixed);
+
+						Transport.send(message);
+					} 
+					catch (MessagingException e) {
+						throw new RuntimeException(e);
+					}
+				}
 			}
 		}
 		catch (AuthenticationException e) {
