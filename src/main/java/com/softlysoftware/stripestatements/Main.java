@@ -39,6 +39,8 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMultipart;
 import com.stripe.Stripe;
 import com.stripe.model.Fee;
+import com.stripe.model.Money;
+import com.stripe.model.Balance;
 import com.stripe.model.BalanceTransaction;
 import com.stripe.model.BalanceTransactionCollection;
 import com.stripe.exception.StripeException;
@@ -217,11 +219,18 @@ public class Main {
 						message.setContent(mixed);
 
 						Transport.send(message);
-					} 
+					}
 					catch (MessagingException e) {
 						throw new RuntimeException(e);
 					}
 				}
+			}
+			Balance balance = Balance.retrieve();
+			for (Money m : balance.getPending()) {
+				log("Pending balance : " + m.getAmount() + " " + m.getCurrency());
+			}
+			for (Money m : balance.getAvailable()) {
+				log("Available balance : " + m.getAmount() + " " + m.getCurrency());
 			}
 		}
 		catch (AuthenticationException e) {
