@@ -118,6 +118,13 @@ public class Main {
 			log("Property : stripe.secret : " + String.format("%" + stripeSecret.length() + "s", "").replace(' ', '*'));
 			int days = Integer.parseInt(properties.getProperty("stripe.days"));
 			log("Property : stripe.days : " + days);
+			boolean skipApplicationFees = false;
+			String skipApplicationFeesProperty = properties.getProperty("stripe.skip.application.fees");
+			if (skipApplicationFeesProperty != null) {
+				log("Property : stripe.skip.application.fees : " + skipApplicationFeesProperty);
+				skipApplicationFees = skipApplicationFeesProperty.toLowerCase().trim().equals("true");
+				log("Application fees " + (skipApplicationFees?"won't":"will still") + " be included in the output.");
+			}
 			Calendar cal = Calendar.getInstance();
 			cal.add(Calendar.DATE, days * -1);
 			log("Getting transactions since : " + cal.getTime());
@@ -149,6 +156,9 @@ public class Main {
 					return (int)(o1.getCreated() - o2.getCreated());
 				}
 			});
+			log("Total transactions downloaded : " + transactions.size());
+			int skippedApplicationFees = 0;
+			int skippedApplicationFeesTotal = 0;
 			BufferedWriter out = null;
 			for (BalanceTransaction tr : transactions) {
 				if (seenTransactions.contains(tr.getId())) {
@@ -156,6 +166,10 @@ public class Main {
 				}
 				else if (gapInTheData) {
 					// data that predates that in the last statement
+				}
+				else if (skipApplicationFees && tr.getDescription().startsWith("Application fee from application")) {
+					skippedApplicationFees++;
+					skippedApplicationFeesTotal = skippedApplicationFeesTotal + tr.getAmount();
 				}
 				else {
 					if (out == null) {
@@ -224,6 +238,10 @@ public class Main {
 						throw new RuntimeException(e);
 					}
 				}
+			}
+			if (skipApplicationFees) {
+				log("Total number of application fees skipped : " + skippedApplicationFees);
+				log("Total amount of application fees skipped : " + skippedApplicationFeesTotal/100d);
 			}
 			Balance balance = Balance.retrieve();
 			for (Money m : balance.getPending()) {
