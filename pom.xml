@@ -3,7 +3,7 @@
 	<groupId>com.softlysoftware.stripestatements</groupId>
 	<artifactId>Stripe-Statements</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.1-SNAPSHOT</version>
 	<name>Stripe-Statements</name>
 	<url>https://github.com/SoftlySoftware/Stripe-Statements</url>
 	<scm>
@@ -147,7 +147,7 @@
 		<dependency>
 			<groupId>com.stripe</groupId>
 			<artifactId>stripe-java</artifactId>
-			<version>1.6.1</version>
+			<version>2.7.0</version>
 		</dependency>
 		<dependency>
 			<groupId>javax.mail</groupId>

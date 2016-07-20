@@ -18,6 +18,7 @@ import java.text.DecimalFormat;
 import java.io.IOException;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.FileInputStream;
@@ -49,6 +50,7 @@ import com.stripe.exception.InvalidRequestException;
 import com.stripe.exception.APIConnectionException;
 import com.stripe.exception.APIException;
 import com.stripe.exception.CardException;
+import com.stripe.net.RequestOptions;
 
 
 public class Main {
@@ -56,8 +58,19 @@ public class Main {
 	public static void main(String[] args) {
 		log("Stripe Statements started at : " + new Date());
 		try {
+			if (args.length == 0) {
+				log("ABORT : Please specify the properties file as the first argument.");
+				return;
+			}
+			File file = new File(args[0]);
+			if (!file.exists() || file.isDirectory()) {
+				log("ABORT : Please specify a valid properties file as the first argument.");
+				return;
+			}
+			FileInputStream fileInputStream = new FileInputStream(file);
 			final Properties properties = new Properties();
-			properties.load(Main.class.getClassLoader().getResourceAsStream("Stripe-Statements.properties"));
+			properties.load(fileInputStream);
+			fileInputStream.close();
 			File directory = new File(properties.getProperty("statements.directory"));
 			if (!directory.exists()) directory.mkdirs();
 			if (!directory.isDirectory()) {
@@ -65,6 +78,12 @@ public class Main {
 				return;
 			}
 			log("Property : statements.directory : " + directory);
+			final String currency = properties.getProperty("statements.currency");
+			if (currency == null) {
+				log("ABORT : You must specify a currency in the properties file (e.g. statements.currency=usd) ");
+				return;
+			}
+			log("Property : statements.currency : " + currency);
 			final String prefix = properties.getProperty("statements.prefix");
 			log("Property : statements.prefix : " + prefix);
 			final String suffix = properties.getProperty("statements.suffix");
@@ -129,24 +148,26 @@ public class Main {
 			cal.add(Calendar.DATE, days * -1);
 			log("Getting transactions since : " + cal.getTime());
 			Stripe.apiKey = stripeSecret;
+			Stripe.apiVersion = "2016-07-06";
+			RequestOptions requestOptions = RequestOptions.getDefault();
 			Map<String, Object> params = new HashMap<String, Object>();
 			Map<String, Object> sub = new HashMap<String, Object>();
 			sub.put("gt", cal.getTime().getTime()/1000);
 			params.put("created", sub);
 			params.put("count", 100);
+			params.put("currency", currency);
 			int offset = 0;
 			List<BalanceTransaction> transactions = new LinkedList<BalanceTransaction>();
 			boolean morePagesNeeded = false;
 			do {
 				params.put("offset", offset);
-				BalanceTransactionCollection balanceTransactionCollection = BalanceTransaction.all(params);
+				BalanceTransactionCollection balanceTransactionCollection = BalanceTransaction.list(params, requestOptions);
 				log("Got " + balanceTransactionCollection.getData().size() + " transactions from Stripe");
 				transactions.addAll(balanceTransactionCollection.getData());
-				int processed = offset + balanceTransactionCollection.getData().size();
-				morePagesNeeded = processed < balanceTransactionCollection.getCount();
+				morePagesNeeded = balanceTransactionCollection.getHasMore();
 				if (morePagesNeeded) {
 					offset = offset + 100;
-					log("Have processed " + processed + " of " + balanceTransactionCollection.getData().size());
+					log("Have processed " + balanceTransactionCollection.getTotalCount() + " of " + balanceTransactionCollection.getData().size());
 					log("Making additional call with offset = " + offset);
 				}
 			} while (morePagesNeeded);
@@ -178,7 +199,7 @@ public class Main {
 					}
 					Date created = new Date(tr.getCreated()*1000);
 					out.write(tr.getId() + "\t" + tr.getSource() + "\t" + MF.format(((double)tr.getAmount())/100d) + "\t" + tr.getCurrency() + "\t");
-					out.write(tr.getType() + "\t" + DF.format(created) + "\t" + TF.format(created) + "\t" + tr.getDescription() + "\n");
+					out.write(tr.getType() + "\t" + DF.format(created) + "\t" + TF.format(created) + "\t" + tr.getDescription().replace("\n", " \\n ") + "\n");
 					for (Fee fee : tr.getFeeDetails()) {
 						out.write(tr.getId() + "\t" + tr.getSource() + "\t" + MF.format((double)(fee.getAmount()*-1d)/100d) + "\t" + fee.getCurrency() + "\t");
 						out.write(fee.getType() + "\t" + DF.format(created) + "\t" + TF.format(created) + "\t" + fee.getDescription() + "\n");
